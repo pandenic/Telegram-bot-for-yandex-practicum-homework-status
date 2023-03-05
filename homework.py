@@ -1,16 +1,16 @@
 """Module contains homework checking telegram bot description."""
+import logging
 import os
 import sys
-import logging
-import requests
-import json.decoder
+import time
 import typing as ty
 
+import requests
 import telegram
-import time
-
+import json.decoder
 from logging import StreamHandler
 from dotenv import load_dotenv
+
 from exception import (
     DoesntSendMessagesException,
     GeneralProgramException,
@@ -31,9 +31,9 @@ TELEGRAM_TOKEN: ty.Optional[str] = os.getenv('TELEGRAM_TOKEN')
 TELEGRAM_CHAT_ID: ty.Optional[str] = os.getenv('TELEGRAM_CHAT_ID')
 
 RETRY_PERIOD: ty.Final[int] = 600
-ENDPOINT: ty.Final[str] = (
-    'https://practicum.yandex.ru/api/user_api/homework_statuses/'
-)
+ENDPOINT: ty.Final[
+    str
+] = 'https://practicum.yandex.ru/api/user_api/homework_statuses/'
 HEADERS: ty.Dict[str, str] = {'Authorization': f'OAuth {PRACTICUM_TOKEN}'}
 
 HOMEWORK_VERDICTS: ty.Dict[str, str] = {
@@ -165,9 +165,9 @@ def parse_status(homework: ty.Dict[str, ty.Any]) -> str:
 
 
 def add_in_error_list_and_send(
-        bot: telegram.Bot,
-        error: Exception,
-        error_list: ty.List[str],
+    bot: telegram.Bot,
+    error: Exception,
+    error_list: ty.List[str],
 ):
     """Adds an error to list of errors if it is not in.
 
