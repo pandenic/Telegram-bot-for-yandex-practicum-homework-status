@@ -1,28 +1,23 @@
 """Module contains homework checking telegram bot description."""
+import json.decoder
 import logging
 import os
 import sys
 import time
 import typing as ty
+from logging import StreamHandler
 
 import requests
 import telegram
-import json.decoder
-from logging import StreamHandler
 from dotenv import load_dotenv
 
-from exception import (
-    DoesntSendMessagesException,
-    GeneralProgramException,
-    NoEnvValueException,
-    UnexpectedAPIAnswerException,
-    UnexpectedAPIAnswerStatusException,
-    WrongTokenException,
-    WrongHomeworkStatusException,
-    WrongAPIAnswerStructureException,
-    WrongHomeworkStructureException,
-    RequestFailedException,
-)
+from exception import (DoesntSendMessagesException, GeneralProgramException,
+                       NoEnvValueException, RequestFailedException,
+                       UnexpectedAPIAnswerException,
+                       UnexpectedAPIAnswerStatusException,
+                       WrongAPIAnswerStructureException,
+                       WrongHomeworkStatusException,
+                       WrongHomeworkStructureException, WrongTokenException)
 
 load_dotenv()
 
@@ -179,14 +174,14 @@ def add_in_error_list_and_send(
         send_message(bot, str_error)
 
 
-def main():
+def main() -> None:
     """Main bot processing logic."""
     try:
         check_tokens()
-    except NoEnvValueException as error:
-        logger.critical(error)
-        exit()
-    except WrongTokenException as error:
+    except (
+            NoEnvValueException,
+            WrongTokenException,
+    ) as error:
         logger.critical(error)
         exit()
 
@@ -212,27 +207,14 @@ def main():
             logger.error('API answer does not meet requirements')
             add_in_error_list_and_send(bot, error, error_list)
 
-        except UnexpectedAPIAnswerException as error:
-            logger.error(error)
-            add_in_error_list_and_send(bot, error, error_list)
-
-        except TypeError as error:
-            logger.error(error)
-            add_in_error_list_and_send(bot, error, error_list)
-
-        except UnexpectedAPIAnswerStatusException as error:
-            logger.error(error)
-            add_in_error_list_and_send(bot, error, error_list)
-
-        except WrongHomeworkStatusException as error:
-            logger.error(error)
-            add_in_error_list_and_send(bot, error, error_list)
-
-        except WrongHomeworkStructureException as error:
-            logger.error(error)
-            add_in_error_list_and_send(bot, error, error_list)
-
-        except RequestFailedException as error:
+        except (
+                UnexpectedAPIAnswerException,
+                UnexpectedAPIAnswerStatusException,
+                WrongHomeworkStatusException,
+                WrongHomeworkStructureException,
+                RequestFailedException,
+                TypeError,
+        ) as error:
             logger.error(error)
             add_in_error_list_and_send(bot, error, error_list)
 
