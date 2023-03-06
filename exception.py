@@ -19,12 +19,6 @@ class GeneralProgramException(Exception):
     pass
 
 
-class WrongAPIAnswerStructureException(Exception):
-    """Exception is used for issues with an API answer structure."""
-
-    pass
-
-
 class UnexpectedAPIAnswerException(Exception):
     """Exception is used for issues with unexpected API answers."""
 
@@ -57,5 +51,17 @@ class WrongHomeworkStructureException(Exception):
 
 class RequestFailedException(Exception):
     """Exception is used for issues with an API request."""
+
+    pass
+
+
+class EndpointReachingException(Exception):
+    """Exception is used for issues with an endpoint."""
+
+    pass
+
+
+class EmptyHomeworkException(Exception):
+    """Exception is used when homework is empty."""
 
     pass

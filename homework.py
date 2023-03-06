@@ -5,17 +5,18 @@ import os
 import sys
 import time
 import typing as ty
+from http import HTTPStatus
 from logging import StreamHandler
 
 import requests
 import telegram
 from dotenv import load_dotenv
 
-from exception import (DoesntSendMessagesException, GeneralProgramException,
+from exception import (DoesntSendMessagesException, EmptyHomeworkException,
+                       EndpointReachingException, GeneralProgramException,
                        NoEnvValueException, RequestFailedException,
                        UnexpectedAPIAnswerException,
                        UnexpectedAPIAnswerStatusException,
-                       WrongAPIAnswerStructureException,
                        WrongHomeworkStatusException,
                        WrongHomeworkStructureException, WrongTokenException)
 
@@ -25,57 +26,66 @@ PRACTICUM_TOKEN: ty.Optional[str] = os.getenv('PRACTICUM_TOKEN')
 TELEGRAM_TOKEN: ty.Optional[str] = os.getenv('TELEGRAM_TOKEN')
 TELEGRAM_CHAT_ID: ty.Optional[str] = os.getenv('TELEGRAM_CHAT_ID')
 
-RETRY_PERIOD: ty.Final[int] = 600
-ENDPOINT: ty.Final[
-    str
-] = 'https://practicum.yandex.ru/api/user_api/homework_statuses/'
-HEADERS: ty.Dict[str, str] = {'Authorization': f'OAuth {PRACTICUM_TOKEN}'}
+RETRY_PERIOD = 600
+ENDPOINT = 'https://practicum.yandex.ru/api/user_api/homework_statuses/'
+HEADERS = {'Authorization': f'OAuth {PRACTICUM_TOKEN}'}
 
-HOMEWORK_VERDICTS: ty.Dict[str, str] = {
+HOMEWORK_VERDICTS = {
     'approved': 'Работа проверена: ревьюеру всё понравилось. Ура!',
     'reviewing': 'Работа взята на проверку ревьюером.',
     'rejected': 'Работа проверена: у ревьюера есть замечания.',
 }
 
-ERROR_TOKEN_LIST: ty.Dict[str, str] = {
-    'no_practicum_token_answer':
-        'PRACTICUM_TOKEN has not been found in env',
-    'no_telegram_token_answer':
-        'TELEGRAM_TOKEN has not been found in env',
-    'no_telegram_chat_id_token_answer':
-        'TELEGRAM_CHAT_ID has not been found in env',
-    'wrong_telegram_token':
-        'TELEGRAM_TOKEN is wrong',
-}
 
-handler: logging.StreamHandler = StreamHandler(sys.stdout)
-formatter: logging.Formatter = logging.Formatter(
-    '%(asctime)s [%(levelname)s] %(message)s',
-)
-handler.setFormatter(formatter)
+class ErrorTokenList:
+    """Contain token error texts."""
 
-logger: logging.Logger = logging.getLogger(__name__)
-logger.setLevel(logging.DEBUG)
-logger.addHandler(handler)
+    NO_PRACTICUM_TOKEN_ANSWER = 'PRACTICUM_TOKEN has not been found in env'
+    NO_TELEGRAM_TOKEN_ANSWER = 'TELEGRAM_TOKEN has not been found in env'
+    NO_TELEGRAM_CHAT_ID_TOKEN_ANSWER = (
+        'TELEGRAM_CHAT_ID has not been found in env'
+    )
+    WRONG_TELEGRAM_TOKEN = 'TELEGRAM_TOKEN is wrong'
+
+
+def init_logger() -> logging.Logger:
+    """Initialize logger with handler."""
+    handler: logging.StreamHandler = StreamHandler(sys.stdout)
+    formatter: logging.Formatter = logging.Formatter(
+        '%(asctime)s [%(levelname)s] %(message)s',
+    )
+    handler.setFormatter(formatter)
+
+    logger: logging.Logger = logging.getLogger(__name__)
+    logger.setLevel(logging.DEBUG)
+    logger.addHandler(handler)
+    return logger
+
+
+logger = init_logger()
 
 
 def check_tokens() -> None:
     """Check if tokens for a module loaded successfully."""
     if not PRACTICUM_TOKEN:
         raise NoEnvValueException(
-            ERROR_TOKEN_LIST['no_practicum_token_answer'],
+            ErrorTokenList.NO_PRACTICUM_TOKEN_ANSWER,
         )
     if not TELEGRAM_TOKEN:
-        raise NoEnvValueException(ERROR_TOKEN_LIST['no_telegram_token_answer'])
+        raise NoEnvValueException(
+            ErrorTokenList.NO_TELEGRAM_TOKEN_ANSWER,
+        )
     if not TELEGRAM_CHAT_ID:
         raise NoEnvValueException(
-            ERROR_TOKEN_LIST['no_telegram_chat_id_token_answer'],
+            ErrorTokenList.NO_TELEGRAM_CHAT_ID_TOKEN_ANSWER,
         )
     telegram_token_status: int = requests.get(
         f'https://api.telegram.org/bot{TELEGRAM_TOKEN}/getMe',
     ).status_code
-    if telegram_token_status == 401:
-        raise WrongTokenException(ERROR_TOKEN_LIST['wrong_telegram_token'])
+    if telegram_token_status == HTTPStatus.UNAUTHORIZED:
+        raise WrongTokenException(
+            ErrorTokenList.WRONG_TELEGRAM_TOKEN,
+        )
 
 
 def send_message(bot: telegram.Bot, message: str) -> None:
@@ -99,49 +109,56 @@ def send_message(bot: telegram.Bot, message: str) -> None:
 
 def get_api_answer(timestamp: int) -> ty.Dict[str, ty.Any]:
     """Retrieve an information from Yandex API."""
-    payload: ty.Dict[str, int] = {'from_date': timestamp}
+    payload = {'from_date': timestamp}
     try:
         response: requests.Response = requests.get(
             url=ENDPOINT,
             headers=HEADERS,
             params=payload,
         )
+        if response.status_code != HTTPStatus.OK:
+            raise UnexpectedAPIAnswerStatusException(
+                f'An API answer status code does not equal 200. '
+                f'Status code: {response.status_code}',
+            )
+        response = response.json()
     except requests.RequestException as error:
         raise RequestFailedException(
             f'Something went wrong with Yandex API request: {error}',
         )
-    if response.status_code != 200:
-        raise UnexpectedAPIAnswerStatusException(
-            'An API answer status code does not equal 200',
+    except json.decoder.JSONDecodeError as error:
+        raise EndpointReachingException(
+            f'Endpoint: "{ENDPOINT}" could not be reached. Error: {error}',
         )
-    return response.json()
+    return response
 
 
 def check_response(response: ty.Dict) -> None:
     """Check if a Yandex API response is correct."""
-    answer_keys: tuple = ('homeworks', 'current_date')
     if 'code' in response:
         raise UnexpectedAPIAnswerException(
             f'Unexpected yandex API answer. Code: "{response["code"]}"',
         )
     if not isinstance(response, dict):
         raise TypeError(
-            'Yandex API answer value under homeworks key is not list '
-            'or answer value is not dict',
+            'Yandex API answer value under homeworks key is not a list '
+            'or answer value is not a dict',
         )
     if 'homeworks' not in response:
         raise UnexpectedAPIAnswerException(
             f'Unexpected yandex API answer. No homeworks key: {response}',
         )
+    if 'current_date' not in response:
+        raise UnexpectedAPIAnswerException(
+            f'Unexpected yandex API answer. No current_date key: {response}',
+        )
     if not isinstance(response['homeworks'], list):
         raise TypeError(
-            'Yandex API answer value under homeworks key is not list '
-            'or answer value is not dict',
+            'Yandex API answer value under homeworks key is not a list '
+            'or answer value is not a dict',
         )
-    if answer_keys != tuple(response.keys()):
-        raise WrongAPIAnswerStructureException(
-            'Yandex API answer does not meet requirements',
-        )
+    if not response['homeworks']:
+        raise EmptyHomeworkException()
 
 
 def parse_status(homework: ty.Dict[str, ty.Any]) -> str:
@@ -149,6 +166,10 @@ def parse_status(homework: ty.Dict[str, ty.Any]) -> str:
     if 'homework_name' not in homework:
         raise WrongHomeworkStructureException(
             f'No "homework_name" in homework: "{homework}"',
+        )
+    if 'status' not in homework:
+        raise WrongHomeworkStructureException(
+            f'No "status" in homework: "{homework}"',
         )
     homework_name: list = homework['homework_name']
     if homework['status'] not in HOMEWORK_VERDICTS:
@@ -185,27 +206,18 @@ def main() -> None:
         logger.critical(error)
         exit()
 
-    bot: telegram.Bot = telegram.Bot(token=TELEGRAM_TOKEN)
-    timestamp: int = int(time.time())
-    error_list: ty.List = []
+    bot = telegram.Bot(token=TELEGRAM_TOKEN)
+    timestamp = int(time.time())
+    error_list = []
 
     while True:
         try:
             response: ty.Dict[str, ty.Any] = get_api_answer(timestamp)
             check_response(response)
-            if response['homeworks']:
-                message: str = parse_status(response['homeworks'][0])
-                send_message(bot, message)
-                error_list = []
-            else:
-                logger.debug('No updates')
-        except json.decoder.JSONDecodeError as error:
-            logger.error(f'Endpoint: "{ENDPOINT}" could not be reached')
-            add_in_error_list_and_send(bot, error, error_list)
-
-        except WrongAPIAnswerStructureException as error:
-            logger.error('API answer does not meet requirements')
-            add_in_error_list_and_send(bot, error, error_list)
+            message: str = parse_status(response['homeworks'][0])
+            send_message(bot, message)
+            error_list = []
+            timestamp = int(time.time()) + 1
 
         except (
                 UnexpectedAPIAnswerException,
@@ -213,10 +225,14 @@ def main() -> None:
                 WrongHomeworkStatusException,
                 WrongHomeworkStructureException,
                 RequestFailedException,
+                EndpointReachingException,
                 TypeError,
         ) as error:
             logger.error(error)
             add_in_error_list_and_send(bot, error, error_list)
+
+        except EmptyHomeworkException:
+            logger.debug('No updates')
 
         except Exception as error:
             logger.critical(f'Сбой в работе программы: {error}')
