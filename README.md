@@ -33,7 +33,7 @@ When the bot has started it will send you a message in bash like this:
 
 Thats mean the bot is working correctly.
 
-## Error and how-to handle
+## Errors and how-to handle
 
 If some issues will appear it will print you an error text in bash.
 
