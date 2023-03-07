@@ -59,9 +59,3 @@ Yandex API response issues:
 Homework status:
 - **"No 'homework_name' in homework:"** : Yandex API answer doesn't contain 'homework_name' key in answer.
 - **"Unknown homework status: ..."** : Yandex API provide unexpected homework status.
-
-
-
-
-
-

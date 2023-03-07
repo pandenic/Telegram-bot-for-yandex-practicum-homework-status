@@ -79,9 +79,14 @@ def check_tokens() -> None:
         raise NoEnvValueException(
             ErrorTokenList.NO_TELEGRAM_CHAT_ID_TOKEN_ANSWER,
         )
-    telegram_token_status: int = requests.get(
-        f'https://api.telegram.org/bot{TELEGRAM_TOKEN}/getMe',
-    ).status_code
+    try:
+        telegram_token_status: int = requests.get(
+            f'https://api.telegram.org/bot{TELEGRAM_TOKEN}/getMdsasde',
+        ).status_code
+    except requests.RequestException as error:
+        raise RequestFailedException(
+            f'Something went wrong with Telegram API request: {error}',
+        )
     if telegram_token_status == HTTPStatus.UNAUTHORIZED:
         raise WrongTokenException(
             ErrorTokenList.WRONG_TELEGRAM_TOKEN,
@@ -189,7 +194,7 @@ def add_in_error_list_and_send(
 
     Sends an error message to a telegram chat using a bot.
     """
-    str_error: str = str(error)
+    str_error = str(error)
     if str_error not in error_list:
         error_list.append(str_error)
         send_message(bot, str_error)
@@ -212,9 +217,9 @@ def main() -> None:
 
     while True:
         try:
-            response: ty.Dict[str, ty.Any] = get_api_answer(timestamp)
+            response = get_api_answer(timestamp)
             check_response(response)
-            message: str = parse_status(response['homeworks'][0])
+            message = parse_status(response['homeworks'][0])
             send_message(bot, message)
             error_list = []
             timestamp = int(time.time()) + 1
