@@ -140,14 +140,14 @@ def get_api_answer(timestamp: int) -> ty.Dict[str, ty.Any]:
 
 def check_response(response: ty.Dict) -> None:
     """Check if a Yandex API response is correct."""
-    if 'code' in response:
-        raise UnexpectedAPIAnswerException(
-            f'Unexpected yandex API answer. Code: "{response["code"]}"',
-        )
     if not isinstance(response, dict):
         raise TypeError(
             'Yandex API answer value under homeworks key is not a list '
             'or answer value is not a dict',
+        )
+    if 'code' in response:
+        raise UnexpectedAPIAnswerException(
+            f'Unexpected yandex API answer. Code: "{response["code"]}"',
         )
     if 'homeworks' not in response:
         raise UnexpectedAPIAnswerException(
@@ -213,7 +213,7 @@ def main() -> None:
 
     bot = telegram.Bot(token=TELEGRAM_TOKEN)
     timestamp = int(time.time())
-    error_list = []
+    error_list: ty.List[str] = []
 
     while True:
         try:
