@@ -1,7 +1,7 @@
 # Telegram bot for Yandex Practicum homework status
 
 ## Description
-The telegram bot provides the status of the last homework that has been sended for reviewing.
+The telegram bot provides the status of the last homework that has been sent for reviewing.
 
 ## Requirements
 Python 3.9
@@ -31,7 +31,7 @@ When the bot has started it will send you a message in bash like this:
 2023-01-01 07:30:30,705 [DEBUG] No updates
 ```
 
-Thats mean the bot is working correctly.
+That means the bot is working correctly.
 
 ## Errors and how-to handle
 
