@@ -4,9 +4,9 @@
 The telegram bot provides the status of the last homework that has been sent for reviewing.
 
 ## Requirements
-Python 3.9
-Python-telegram-bot 13.7
-Python-dotenv 0.19
+- Python 3.9
+- Python-telegram-bot 13.7
+- Python-dotenv 0.19
 
 ## Startup
 
